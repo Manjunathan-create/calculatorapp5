@@ -1,0 +1,634 @@
+import 'package:flutter/material.dart';
+import 'dart:io';
+import 'package:flutter/services.dart';
+
+void main() {
+  runApp(CalculatorApp());
+}
+
+class CalculatorApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: MainScreen(),
+    );
+  }
+}
+
+class MainScreen extends StatefulWidget {
+  @override
+  _MainScreenState createState() => _MainScreenState();
+}
+
+class _MainScreenState extends State<MainScreen> {
+  int _currentIndex = 0;
+
+  final List<Widget> _pages = [
+    CalculatorScreen(),
+    CalculatorScreen(), // Same functionality as Provider
+    UploadScreen(),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: _pages[_currentIndex],
+      ),
+      bottomNavigationBar: Container(
+        height: MediaQuery.of(context).size.height * 0.1, // 10% of screen height
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(30),
+            topRight: Radius.circular(30),
+          ),
+          child: BottomNavigationBar(
+            backgroundColor: Color(0xFFF4ECFF),
+            selectedLabelStyle: TextStyle(fontSize: 15),
+            currentIndex: _currentIndex,
+            onTap: (index) {
+              setState(() {
+                _currentIndex = index;
+              });
+            },
+            items: const [
+              BottomNavigationBarItem(
+                icon: Icon(Icons.home_outlined, size: 35),
+                label: 'Provider',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.more_horiz, size: 35),
+                label: 'GetX',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.image_outlined, size: 35),
+                label: 'Upload',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class CalculatorScreen extends StatefulWidget {
+  @override
+  _CalculatorScreenState createState() => _CalculatorScreenState();
+}
+
+class _CalculatorScreenState extends State<CalculatorScreen> {
+  String input = "0";
+  String result = "0";
+  double currentResult = 0;
+  String currentOperator = "";
+
+  void _onButtonPressed(String text) {
+    setState(() {
+      if (text == "C") {
+        _clearCalculator();
+      } else if (text == "=") {
+        _calculateResult();
+      } else if (text == "%") {
+        _calculatePercentage();
+      } else if (text == "+" || text == "-" || text == "×" || text == "÷") {
+        _handleOperator(text);
+      } else if (text == "backspace") {
+        _handleBackspace();
+      } else {
+        _handleNumberInput(text);
+      }
+    });
+  }
+
+  void _clearCalculator() {
+    input = "0";
+    result = "0";
+    currentResult = 0;
+    currentOperator = "";
+  }
+
+  void _calculateResult() {
+    try {
+      result = _calculate(input);
+      currentResult = double.tryParse(result) ?? 0;
+    } catch (e) {
+      result = "Error";
+      input = "0";
+    }
+  }
+
+  void _calculatePercentage() {
+    try {
+      double percentageValue = double.parse(input) / 100;
+      result = percentageValue.toString();
+      input = result;
+    } catch (e) {
+      result = "Error";
+      input = "0";
+    }
+  }
+
+  void _handleOperator(String operator) {
+    if (input == "0" || input == "Error") {
+      input = currentResult.toString() + operator;
+    } else {
+      input += " $operator ";
+    }
+    currentOperator = operator;
+  }
+
+  void _handleBackspace() {
+    if (input.length > 1) {
+      input = input.substring(0, input.length - 1);
+    } else {
+      input = "0";
+    }
+  }
+
+  void _handleNumberInput(String text) {
+    if (input == "0" || input == "Error") {
+      input = text;
+    } else {
+      input += text;
+    }
+  }
+
+  String _calculate(String expression) {
+    try {
+      final result = _performBasicCalculation(expression);
+      currentResult = result;
+      return result.toString();
+    } catch (e) {
+      return "Error";
+    }
+  }
+
+  double _performBasicCalculation(String expression) {
+    List<String> tokens = expression.split(' ');
+    double firstNum = double.parse(tokens[0]);
+    double secondNum = double.parse(tokens[2]);
+
+    switch (tokens[1]) {
+      case "+":
+        return firstNum + secondNum;
+      case "-":
+        return firstNum - secondNum;
+      case "×":
+        return firstNum * secondNum;
+      case "÷":
+        if (secondNum != 0) {
+          double result = firstNum / secondNum;
+          return double.parse(result.toStringAsFixed(6));
+        } else {
+          throw Exception("Cannot divide by zero");
+        }
+      default:
+        throw Exception("Invalid operator");
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+
+    return Scaffold(
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Network Image Container
+            Padding(
+              padding: EdgeInsets.only(top: screenHeight * 0.04),
+              child: Container(
+                width: screenWidth,
+                height: screenHeight * 0.12,
+                decoration: BoxDecoration(
+                  color: Color(0xFFF4ECFF),
+                ),
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: EdgeInsets.only(left: screenWidth * 0.05),
+                  child: Image.network(
+                    'https://drive.google.com/uc?export=view&id=1rxaLCWwCvaqM8ZR_xZuRt2MQTW2sjOVP',
+                    width: screenWidth * 0.5,
+                    height: screenHeight * 0.12,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(height: screenHeight * 0.02),
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.03),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        CalculatorButton("C", Colors.black, screenWidth,
+                            background: Color(0xD2E8E3E3),
+                            onPressed: _onButtonPressed),
+                        CalculatorButton("%", Colors.black, screenWidth,
+                            background: Color(0xD2E8E3E3),
+                            onPressed: _onButtonPressed),
+                        CalculatorButton("backspace", Colors.black, screenWidth,
+                            isIcon: true, onPressed: _onButtonPressed),
+                        CalculatorButton("÷", Colors.white, screenWidth,
+                            background: Colors.orange,
+                            onPressed: _onButtonPressed),
+                      ],
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        CalculatorButton("7", Colors.black, screenWidth,
+                            background: Color(0xFFF4ECFF),
+                            onPressed: _onButtonPressed),
+                        CalculatorButton("8", Colors.black, screenWidth,
+                            background: Color(0xFFF4ECFF),
+                            onPressed: _onButtonPressed),
+                        CalculatorButton("9", Colors.black, screenWidth,
+                            background: Color(0xFFF4ECFF),
+                            onPressed: _onButtonPressed),
+                        CalculatorButton("×", Colors.white, screenWidth,
+                            background: Colors.orange,
+                            onPressed: _onButtonPressed),
+                      ],
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        CalculatorButton("4", Colors.black, screenWidth,
+                            background: Color(0xFFF4ECFF),
+                            onPressed: _onButtonPressed),
+                        CalculatorButton("5", Colors.black, screenWidth,
+                            background: Color(0xFFF4ECFF),
+                            onPressed: _onButtonPressed),
+                        CalculatorButton("6", Colors.black, screenWidth,
+                            background: Color(0xFFF4ECFF),
+                            onPressed: _onButtonPressed),
+                        CalculatorButton("-", Colors.white, screenWidth,
+                            background: Colors.orange,
+                            onPressed: _onButtonPressed),
+                      ],
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        CalculatorButton("1", Colors.black, screenWidth,
+                            background: Color(0xFFF4ECFF),
+                            onPressed: _onButtonPressed),
+                        CalculatorButton("2", Colors.black, screenWidth,
+                            background: Color(0xFFF4ECFF),
+                            onPressed: _onButtonPressed),
+                        CalculatorButton("3", Colors.black, screenWidth,
+                            background: Color(0xFFF4ECFF),
+                            onPressed: _onButtonPressed),
+                        CalculatorButton("+", Colors.white, screenWidth,
+                            background: Colors.orange,
+                            onPressed: _onButtonPressed),
+                      ],
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        CalculatorButton(".", Colors.black, screenWidth,
+                            background: Color(0xFFF4ECFF),
+                            onPressed: _onButtonPressed),
+                        CalculatorButton("0", Colors.black, screenWidth,
+                            background: Color(0xFFF4ECFF),
+                            onPressed: _onButtonPressed),
+                        CalculatorButton("00", Colors.black, screenWidth,
+                            background: Color(0xFFF4ECFF),
+                            onPressed: _onButtonPressed),
+                        CalculatorButton("=", Colors.white, screenWidth,
+                            background: Colors.deepPurple,
+                            onPressed: _onButtonPressed),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Container(
+              width: screenWidth * 0.9,
+              padding: EdgeInsets.symmetric(
+                  horizontal: screenWidth * 0.06, vertical: screenHeight * 0.01),
+              decoration: BoxDecoration(
+                color: Color(0xE6E8E8EC),
+                borderRadius: BorderRadius.circular(30),
+              ),
+              margin: EdgeInsets.symmetric(
+                  horizontal: screenWidth * 0.05, vertical: screenHeight * 0.02),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  SizedBox(height: screenHeight * 0.01),
+                  Text(
+                    result,
+                    style: TextStyle(
+                        fontSize: screenWidth * 0.12,
+                        fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    input,
+                    style: TextStyle(
+                        fontSize: screenWidth * 0.08, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// UploadScreen and other classes remain unchanged...
+
+class UploadScreen extends StatefulWidget {
+  @override
+  _UploadScreenState createState() => _UploadScreenState();
+}
+
+class _UploadScreenState extends State<UploadScreen> {
+  String? _imagePath;
+
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              "Upload image",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 32),
+            ),
+            SizedBox(
+              height: 15,
+            ),
+            if (_imagePath != null)
+              Column(
+                children: [
+                  Image.file(
+                    File(_imagePath!),
+                    width: screenWidth * 0.8,
+                    height: screenWidth * 0.8,
+                    fit: BoxFit.cover,
+                  ),
+                  SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      IconButton(
+                        icon: Icon(Icons.edit_note, color: Color(0xFF512DA8),size: 65,),
+                        onPressed: () {
+                          _showUploadOptions(context);
+                        },
+                      ),
+                      SizedBox(
+                        width: 35,
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.check_circle_rounded,
+                          size: 65,
+                          color: Color(0xFF512DA8),),
+                        onPressed: () {
+                          // Handle tick icon click
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              )
+            else
+              GestureDetector(
+                onTap: () {
+                  _showUploadOptions(context);
+                },
+                child: Container(
+                  width: screenWidth * 0.88,
+                  height: screenWidth * 0.88,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Icon(
+                    Icons.add_circle_rounded,
+                    size: screenWidth * 0.2,
+                    color: Color(0xFF512DA8),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showUploadOptions(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return Container(
+          padding: EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "Upload via",
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 20),
+              ListTile(
+                leading: Icon(
+                  Icons.camera_alt_outlined,
+                ),
+                title: Text(
+                  "Camera",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _openCamera(context);
+                },
+              ),
+              ListTile(
+                leading: Icon(
+                  Icons.photo_library,
+                ),
+                title: Text("Gallery",
+                    style:
+                    TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _openGallery(context);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _openCamera(BuildContext context) async {
+    final MethodChannel _channel = MethodChannel('com.example.calapp3/camera');
+    try {
+      final String? imagePath = await _channel.invokeMethod('takePhoto');
+      if (imagePath != null) {
+        setState(() {
+          _imagePath = imagePath;
+        });
+        // Navigate to PreviewPage with the captured image
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PreviewPage(imagePath: imagePath),
+          ),
+        );
+      }
+    } on PlatformException catch (e) {
+      print("Failed to open camera: ${e.message}");
+    }
+  }
+
+  void _openGallery(BuildContext context) async {
+    final MethodChannel _channel = MethodChannel('com.example.calapp3/camera');
+    try {
+      final String? imagePath = await _channel.invokeMethod('pickPhoto');
+      if (imagePath != null) {
+        setState(() {
+          _imagePath = imagePath;
+        });
+        // Navigate to PreviewPage with the selected image
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PreviewPage(imagePath: imagePath),
+          ),
+        );
+      }
+    } on PlatformException catch (e) {
+      print("Failed to open gallery: ${e.message}");
+    }
+  }
+}
+
+class PreviewPage extends StatelessWidget {
+  final String imagePath;
+
+  const PreviewPage({Key? key, required this.imagePath}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text("Preview"),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              "Upload image",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 32),
+            ),
+            SizedBox(
+              height: 15,
+            ),
+            Container(
+              width: screenWidth * 0.88,
+              height: screenWidth * 0.88,
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Image.file(
+                File(imagePath),
+                fit: BoxFit.cover,
+              ),
+            ),
+            SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  icon: Icon(Icons.edit_note, color: Color(0xFF512DA8),size: 65,),
+                  onPressed: () {
+                    // Handle edit icon click
+                  },
+                ),
+                SizedBox(
+                  width: 35,
+                ),
+                IconButton(
+                  icon: Icon(Icons.check_circle_rounded,
+                    color: Color(0xFF512DA8),size: 65,),
+                  onPressed: () {
+                    // Handle tick icon click
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class CalculatorButton extends StatelessWidget {
+  final String text;
+  final Color textColor;
+  final double screenWidth;
+  final bool isIcon;
+  final Color? background;
+  final Function(String) onPressed;
+
+  CalculatorButton(
+      this.text,
+      this.textColor,
+      this.screenWidth, {
+        this.isIcon = false,
+        this.background,
+        required this.onPressed,
+      });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () => onPressed(text),
+      borderRadius: BorderRadius.circular(50),
+      child: CircleAvatar(
+        backgroundColor: background ?? Color(0xD2E8E3E3),
+        radius: screenWidth * 0.1,
+        child: isIcon
+            ? Icon(Icons.backspace_outlined, color: textColor, size: screenWidth * 0.08)
+            : Text(text,
+            style: TextStyle(
+                fontSize: screenWidth * 0.08,
+                fontWeight: FontWeight.bold,
+                color: textColor)),
+      ),
+    );
+  }
+}
